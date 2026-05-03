@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MathApp Salsa v3.2</title>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-database.js"></script>
+    <style>
+        body { font-family: sans-serif; background: #f4f7f6; display: flex; justify-content: center; padding: 20px; }
+        .container { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 100%; max-width: 400px; text-align: center; }
+        .hidden { display: none; }
+        button { width: 100%; padding: 12px; margin: 8px 0; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+        .btn-blue { background: #007bff; color: white; }
+        .btn-green { background: #28a745; color: white; }
+        input, textarea { width: 100%; padding: 10px; margin-bottom: 10px; border-radius: 6px; border: 1px solid #ddd; box-sizing: border-box; }
+        .soal-box { background: #fff3cd; padding: 15px; border-radius: 8px; font-weight: bold; margin: 10px 0; border: 1px solid #ffeeba; }
+    </style>
+</head>
+<body>
+<div class="container">
+    <div id="pilih-layar">
+        <h2>MathApp Salsa</h2>
+        <button class="btn-blue" onclick="gantiLayar('guru')">SAYA GURU</button>
+        <button class="btn-green" onclick="gantiLayar('murid')">SAYA MURID</button>
+    </div>
+    <div id="layar-guru" class="hidden">
+        <h3>Menu Guru</h3>
+        <textarea id="input-soal" placeholder="Ketik soal matematika..."></textarea>
+        <input type="number" id="input-kunci" placeholder="Jawaban benar">
+        <button class="btn-blue" onclick="kirimKeFirebase()">KIRIM SOAL SEKARANG</button>
+        <div id="rekap-jawaban" style="text-align: left; margin-top: 15px; font-size: 13px;"></div>
+        <button onclick="location.reload()" style="background:#eee">Keluar</button>
+    </div>
+    <div id="layar-murid" class="hidden">
+        <h3>Menu Murid</h3>
+        <input type="text" id="nama-siswa" placeholder="Nama kamu">
+        <div class="soal-box" id="teks-soal">Menunggu soal...</div>
+        <input type="number" id="jawaban-siswa" placeholder="Jawaban kamu">
+        <button class="btn-green" onclick="jawabKeFirebase()">KIRIM JAWABAN</button>
+        <p id="notif"></p>
+        <button onclick="location.reload()" style="background:#eee">Kembali</button>
+    </div>
+</div>
+<script>
+    const firebaseConfig = {
+        apiKey: "AIzaSyA9VX25JWkL1kU9ai0I0CuDyIPPxyW4GVc",
+        authDomain: "game-matematika-86df1.firebaseapp.com",
+        databaseURL: "https://game-matematika-86df1-default-rtdb.firebaseio.com",
+        projectId: "game-matematika-86df1",
+        storageBucket: "game-matematika-86df1.appspot.com",
+        messagingSenderId: "885558305902",
+        appId: "1:885558305902:web:6c164592fd45c9ef2ab27f"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const database = firebase.database();
+    function gantiLayar(layar) {
+        document.getElementById('pilih-layar').classList.add('hidden');
+        document.getElementById('layar-' + layar).classList.remove('hidden');
+        if(layar === 'murid') dengerinSoal();
+        if(layar === 'guru') dengerinJawaban();
+    }
+    function kirimKeFirebase() {
+        const s = document.getElementById('input-soal').value;
+        const k = document.getElementById('input-kunci').value;
+        database.ref('game/soalAktif').set({ soal: s, kunci: k });
+        database.ref('game/jawabanMasuk').remove();
+        alert("Soal Terkirim!");
+    }
+    function dengerinSoal() {
+        database.ref('game/soalAktif/soal').on('value', (snapshot) => {
+            document.getElementById('teks-soal').innerText = snapshot.val() || "Belum ada soal dari guru.";
+        });
+    }
+    function jawabKeFirebase() {
+        const nama = document.getElementById('nama-siswa').value;
+        const jawab = document.getElementById('jawaban-siswa').value;
+        if(!nama || !jawab) return alert("Isi nama dan jawaban!");
+        database.ref('game/soalAktif/kunci').once('value', (snapshot) => {
+            const kunci = snapshot.val();
+            const status = (jawab == kunci) ? "Benar ✅" : "Salah ❌";
+            database.ref('game/jawabanMasuk/' + nama).set({ jawaban: jawab, status: status });
+            document.getElementById('notif').innerText = "Terkirim: " + status;
+        });
+    }
+    function dengerinJawaban() {
+        database.ref('game/jawabanMasuk').on('value', (snapshot) => {
+            const data = snapshot.val();
+            let teks = "<b>Hasil Jawaban Murid:</b><br>";
+            for(let n in data) {
+                teks += `- ${n}: ${data[n].jawaban} (${data[n].status})<br>`;
+            }
+            document.getElementById('rekap-jawaban').innerHTML = teks;
+        });
+    }
+</script>
+</body>
+</html>
